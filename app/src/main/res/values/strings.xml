@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">Minesweeper</string>
+    <string name="app_name">CS 310 Muyang Ye</string>
+    <string name="flag">\uD83D\uDEA9</string>
+    <string name="mine">\uD83D\uDCA3</string>
 </resources>
