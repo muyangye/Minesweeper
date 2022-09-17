@@ -9,6 +9,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import androidx.gridlayout.widget.GridLayout;
 
+import android.os.Handler;
 import android.util.Pair;
 import android.view.View;
 import android.widget.Button;
@@ -21,7 +22,6 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -29,11 +29,14 @@ public class MainActivity extends AppCompatActivity {
     private int[][] flags = new int[10][8];
     private TextView[][] grids = new TextView[10][8];
     private boolean isPick = true;
+    private int seconds = 0;
+    private int numFlags = 4;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        runTimer();
 
         // Add 10 * 8 grids dynamically
         GridLayout gameBoard = findViewById(R.id.gameBoard);
@@ -62,16 +65,44 @@ public class MainActivity extends AppCompatActivity {
 
         // Randomly generates 4 mines
         Random random = new Random();
-        List<Integer> minesPos = random.ints(0, 80)
-                .distinct().limit(10).boxed().collect(Collectors.toList());
-        for (Integer minePos : minesPos) {
+        for (Integer minePos : generateFourRandomPos()) {
             mines[minePos % 10][minePos % 8] = 1;
         }
+    }
+
+    private void runTimer() {
+        final TextView time = (TextView) findViewById(R.id.time);
+        final Handler handler = new Handler();
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                time.setText(String.valueOf(seconds));
+                seconds += 1;
+                handler.postDelayed(this, 1000);
+            }
+        });
     }
 
     private int dpToPixel(int dp) {
         float density = Resources.getSystem().getDisplayMetrics().density;
         return Math.round(dp * density);
+    }
+
+    // Helper function to randomly generate 4 integers between 0 and 79
+    List<Integer> generateFourRandomPos()
+    {
+        List<Integer> randomPos = new ArrayList<>();
+        Set<Integer> seen = new HashSet<>();
+        for (int i = 0; i < 4; i++) {
+            Random random = new Random();
+            int randomNum = random.nextInt(80);
+            while (seen.contains(randomNum)) {
+                randomNum = random.nextInt(80);
+            }
+            randomPos.add(randomNum);
+            seen.add(randomNum);
+        }
+        return randomPos;
     }
 
     // Helper function to get the "coordinate" (i, j) of the current TextView
@@ -128,6 +159,8 @@ public class MainActivity extends AppCompatActivity {
                 }
                 // Redirect to result page and show lost message
                 Intent intent = new Intent(this, ResultActivity.class);
+                intent.putExtra("resultMessage", "Used " + String.valueOf(seconds) +
+                        " seconds.\nYou lost.\nPlay again?");
                 startActivity(intent);
                 return;
             }
@@ -135,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
             Queue<Pair<Integer, Integer>> queue = new LinkedList<Pair<Integer, Integer>>();
             queue.add(startCoordinate);
             Set<Pair<Integer, Integer>> visited = new HashSet<>();
+            TextView numFlags = (TextView) findViewById(R.id.numFlags);
             int[][] directions = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
             while (!queue.isEmpty()) {
                 for (int i = 0; i < queue.size(); i++) {
@@ -142,6 +176,13 @@ public class MainActivity extends AppCompatActivity {
                     int row = coordinate.first;
                     int col = coordinate.second;
                     grids[row][col].setBackgroundColor(Color.GRAY);
+                    // If the user flags a cell without mine, remove the flag
+                    if (flags[row][col] == 1) {
+                        grids[row][col].setText("");
+                        this.numFlags += 1;
+                        numFlags.setText(String.valueOf(this.numFlags));
+                        flags[row][col] = 0;
+                    }
                     List<Pair<Integer, Integer>> okCoordinates = new ArrayList<>();
                     // Total number of possible nearby grids that aren't miness
                     // (this variable is to handle corners that don't count towards mines/safe)
@@ -174,7 +215,9 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+        // The user is placing/removing a flag
         else {
+            TextView numFlags = (TextView) findViewById(R.id.numFlags);
             int row = startCoordinate.first;
             int col = startCoordinate.second;
             if (((ColorDrawable) grids[row][col].getBackground()).getColor() == Color.GRAY) {
@@ -183,14 +226,20 @@ public class MainActivity extends AppCompatActivity {
             if (flags[row][col] == 1) {
                 grids[row][col].setText("");
                 flags[row][col] = 0;
+                this.numFlags += 1;
+                numFlags.setText(String.valueOf(this.numFlags));
             }
             else {
                 grids[row][col].setText(R.string.flag);
                 flags[row][col] = 1;
+                this.numFlags -= 1;
+                numFlags.setText(String.valueOf(this.numFlags));
                 // If the user wins
                 if (isWin()) {
                     // Redirect to result page
                     Intent intent = new Intent(this, ResultActivity.class);
+                    intent.putExtra("resultMessage", "Used " + String.valueOf(seconds) +
+                            " seconds.\nYou won.\nGood job!");
                     startActivity(intent);
                     return;
                 }
