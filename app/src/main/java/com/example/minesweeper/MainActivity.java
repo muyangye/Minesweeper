@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
         // Randomly generates 4 mines
         Random random = new Random();
         for (Integer minePos : generateFourRandomPos()) {
-            mines[minePos % 10][minePos % 8] = 1;
+            mines[minePos / 8][minePos % 8] = 1;
         }
     }
 
